@@ -30,23 +30,24 @@ resource "aws_route_table" "public-tf-RT" {
   }
 }
 
-resource "aws_subnet" "public-tf-subnet" {
+resource "aws_subnet" "public_subnet" {
   vpc_id     = aws_vpc.hmtfVPC.id
   cidr_block = var.subnet_cidr
 }
 
-resource "aws_subnet" "public-tf-subnet2" {
+resource "aws_subnet" "public_subnet2" {
   vpc_id     = aws_vpc.hmtfVPC.id
   cidr_block = var.subnet2_cidr
 }
 
+
 resource "aws_route_table_association" "rt-ass-tf1" {
-  subnet_id      = aws_subnet.public-tf-subnet.id
+  subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public-tf-RT.id
 }
 
 resource "aws_route_table_association" "rt-ass-tf2" {
-  subnet_id      = aws_subnet.public-tf-subnet2.id
+  subnet_id      = aws_subnet.public_subnet2.id
   route_table_id = aws_route_table.public-tf-RT.id
 }
 
@@ -129,11 +130,11 @@ resource "aws_autoscaling_group" "tf-asg-ec2" {
   min_size             = 2
   max_size             = 5
   desired_capacity     = 2
-  vpc_zone_identifier  = [aws_subnet.public-tf-subnet.id, aws_subnet.public-tf-subnet2.id]
+  vpc_zone_identifier  = [aws_subnet.public_subnet.id, aws_subnet.public_subnet2.id]
 
   tag {
     key                 = "Name"
-    value               = "tf-asg-ec2"
+    value               = "hm0224 TF"
     propagate_at_launch = true
   }
 }
@@ -150,7 +151,7 @@ resource "aws_lb" "web-app-lb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.tf-sg-alb.id]
-  subnets            = [aws_subnet.public-tf-subnet.id, aws_subnet.public-tf-subnet2.id]
+  subnets            = [aws_subnet.public_subnet.id, aws_subnet.public_subnet2.id]
 }
 
 resource "aws_lb_listener" "front_end" {
@@ -168,10 +169,23 @@ resource "aws_s3_bucket" "tf-hm-s3-bucket" {
   bucket = var.bucket_name
 }
 
-resource "aws_s3_bucket_acl" "tf-hm-s3-bucket" {
-  bucket = aws_s3_bucket.tf-hm-s3-bucket.id
-  acl    = "private"
+resource "aws_s3_bucket_policy" "hmtf_bucket_policy" {
+  bucket = aws_s3_bucket.tf-hm-s3-bucket.id 
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": "*", 
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::tf-hm-s3-bucket/*"
+        }
+    ]
 }
+EOF
+}
+
 
 resource "aws_iam_role" "example" {
   name = "example_role"
@@ -208,15 +222,15 @@ resource "aws_iam_role_policy" "example" {
 
 resource "aws_db_subnet_group" "tf_rds_db_subnet_group" {
   name       = "tf_rds_db_subnet_group"
-  subnet_ids = [aws_subnet.public-tf-subnet.id, aws_subnet.public-tf-subnet2.id]
+  subnet_ids = [aws_subnet.public_subnet.id, aws_subnet.public_subnet2.id]
 }
 
-resource "aws_db_instance" "mydb" {
+resource "aws_db_instance" "hm0224db" {
   allocated_storage      = 20
   storage_type           = "gp2"
   engine                 = "mysql"
   engine_version         = "5.7"
-  instance_class         = "db.t2.micro"
+  instance_class         = "db.t2.medium"
   db_name                = "mydb"
   username               = "user"
   password               = "pass"
@@ -224,3 +238,4 @@ resource "aws_db_instance" "mydb" {
   db_subnet_group_name   = aws_db_subnet_group.tf_rds_db_subnet_group.name
   vpc_security_group_ids = [aws_security_group.tf-sg-rds.id]
 }
+
